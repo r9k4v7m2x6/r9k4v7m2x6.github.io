@@ -134,17 +134,23 @@ function observeVideos() {
       entries.forEach((entry) => {
         const v = entry.target;
         if (entry.isIntersecting) {
-          if (!v.src && v.dataset.src) {
+          if (!v.getAttribute("src") && v.dataset.src) {
             v.src = v.dataset.src;
             v.load();
           }
           v.play().catch(() => {});
         } else {
           v.pause();
+          // Release decoders and network buffers for off-screen videos. Keeping
+          // all ten players loaded can exhaust browser media resources.
+          if (v.getAttribute("src")) {
+            v.removeAttribute("src");
+            v.load();
+          }
         }
       });
     },
-    { rootMargin: "400px 0px", threshold: 0.01 }
+    { rootMargin: "160px 0px", threshold: 0.01 }
   );
 
   videos.forEach((v) => io.observe(v));
