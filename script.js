@@ -53,7 +53,13 @@ function buildDemoCard(demo, index, promptText, peText) {
           <video class="gallery-video" loop muted playsinline controls preload="none" data-src="${demo.pe}"></video>
         </div>
         <details class="pe-details">
-          <summary>WanPE enhanced prompt</summary>
+          <summary>
+            <span class="pe-summary-copy">
+              <span class="pe-summary-title">WanPE enhanced prompt</span>
+              <span class="pe-summary-hint">Click to view</span>
+            </span>
+            <span class="pe-summary-chevron" aria-hidden="true"></span>
+          </summary>
           <div class="pe-body">${escapeHtml(peText)}</div>
         </details>
       </div>

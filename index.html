@@ -3,183 +3,26 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WanPE: Towards Cinematic Prompt Enhancement for Modern Text-to-Video Generation</title>
-  <meta name="description" content="WanPE is a 397B-parameter cinematic prompt enhancement model for modern text-to-video generation.">
+  <title>WanPE Video Demos — Anonymous Supplementary Material</title>
+  <meta name="description" content="Anonymous video demonstrations for WanPE.">
   <meta name="robots" content="noindex,nofollow,noarchive,nosnippet,noimageindex">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; media-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'">
   <link rel="stylesheet" href="./styles.css">
 </head>
-<body>
-  <div id="mobile-warning">
-    For the best experience, it's better to use a desktop computer to view this website.
-    <br>
-    <button id="dismiss-warning" type="button">Continue</button>
-  </div>
+<body class="demo-only-page">
+  <main class="content demo-content">
+    <section id="demos" class="section-card demo-page">
+      <header class="demo-page-header">
+        <div class="hero-badge">Anonymous supplementary material</div>
+        <h1>WanPE Video Demos</h1>
+      </header>
 
-  <aside class="sidebar">
-    <a href="#paper-info" class="sidebar-title">WanPE</a>
-    <ul>
-      <li><a href="#abstract" class="nav-link">Abstract</a></li>
-      <li><a href="#method" class="nav-link">Method</a></li>
-      <li><a href="#results" class="nav-link">Results</a></li>
-      <li><a href="#demos" class="nav-link">Video Demos</a></li>
-    </ul>
-    <div class="sidebar-foot">Anonymous submission</div>
-  </aside>
-
-  <main class="content">
-    <header id="paper-info" class="paper-info">
-      <div class="hero-badge">Anonymous supplementary material</div>
-      <h1>WanPE: Towards Cinematic Prompt Enhancement for Modern Text-to-Video Generation</h1>
-
-      <div class="links">
-        <a href="#demos">Video Demos</a>
-      </div>
-    </header>
-
-    <section id="abstract" class="section-card">
-      <h2>Abstract</h2>
-      <div class="prose">
-        <p>
-          Video generation begins in text space by authoring a cinematic screenplay, then materializes into pixels.
-          As contemporary video generators scale to 30 seconds and faithfully follow complex conditions, the textual prompt
-          largely directs the production, planning how actions, camera trajectories, lighting, and sound unfold across multi-shot sequences.
-          In this paper, we present <strong>WanPE</strong>, a 397B-parameter prompt enhancement model trained on
-          1.05M real-world videos to master director-level cinematic planning.
-          WanPE formulates shot-level cinematic plans via video-grounded reverse construction, and employs
-          Semantic-Consistency GRPO (SC-GRPO) to faithfully preserve user requirements across shots and over time.
-          To benchmark this capability, we curate <strong>WanPEval</strong>, a human-annotated testbed covering durations from 5 to 30 seconds
-          across varying intent granularities, supported by ~11K blind pairwise assessments.
-          When powering Wan3.0’s video generator, WanPE-397B boosts human preference over raw user prompts by
-          10.7–18.8 points at 5–15 seconds, and by a dramatic 50.9 points in the 30-second arena.
-          Ablation studies show that reverse construction demonstrates clear superiority over forward rewriting, while SC-GRPO robustly preserves
-          semantic fidelity across model scales. Ultimately, WanPE leads all evaluated commercial offerings at 5–15 seconds and remains
-          competitive with Seedance 2.5 at 30 seconds.
-        </p>
-      </div>
-    </section>
-
-    <section id="method" class="section-card">
-      <h2>Method</h2>
-      <div class="figure-wrap">
-        <img src="./assets/figures/method.png" alt="WanPE training pipeline">
-      </div>
-    </section>
-
-    <section id="results" class="section-card">
-      <h2>Results</h2>
-      <div class="figure-wrap">
-        <img src="./assets/figures/results.png" alt="WanPE results">
+      <div class="sound-tip" role="note">
+        <span class="sound-tip-icon" aria-hidden="true">🔊</span>
+        <span><strong>For the best experience, turn on sound</strong> using the player controls.</span>
       </div>
 
-      <div class="results-table-block">
-        <h3>Preference Scores on WanPEval</h3>
-        <p class="table-caption">
-          (i) 30-second subset against Seedance 2.5, under Wan3.0.
-          (ii) Reverse-constructed vs. forward-based enhancement, under Wan3.0.
-          (iii) Format-adapted WanPE vs. native enhancers on LTX-2.5 and MiniMax-H3 in two separate battles.
-        </p>
-        <div class="results-table-wrap" role="region" aria-label="WanPEval preference scores" tabindex="0">
-          <table class="results-table">
-            <thead>
-              <tr>
-                <th scope="col">Method</th>
-                <th scope="col">Action</th>
-                <th scope="col">Anim.</th>
-                <th scope="col">Speech</th>
-                <th scope="col">Ad.</th>
-                <th scope="col">Sing &amp; Dance</th>
-                <th scope="col">Drama</th>
-                <th scope="col">Know.</th>
-                <th scope="col">Overall</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr class="experiment-row"><th colspan="9" scope="colgroup">Exp1: 30-second subset</th></tr>
-              <tr>
-                <th scope="row">Seedance 2.5</th>
-                <td class="score-best">68.18</td>
-                <td class="score-second">46.43</td>
-                <td class="score-second">55.00</td>
-                <td class="score-best">81.25</td>
-                <td class="score-best">60.00</td>
-                <td class="score-best">56.00</td>
-                <td class="score-best">60.71</td>
-                <td class="score-second">59.76</td>
-              </tr>
-              <tr class="generator-row"><td colspan="9">downstream generator: Wan3.0's video generator</td></tr>
-              <tr>
-                <th scope="row">Original request</th>
-                <td>4.17</td><td>9.38</td><td>15.79</td><td>5.00</td>
-                <td>22.50</td><td>4.00</td><td>3.57</td><td>9.38</td>
-              </tr>
-              <tr>
-                <th scope="row">+ WanPE-397B</th>
-                <td class="score-second">50.00</td>
-                <td class="score-best">81.25</td>
-                <td class="score-best">73.68</td>
-                <td class="score-second">75.00</td>
-                <td class="score-second">47.50</td>
-                <td class="score-second">53.85</td>
-                <td class="score-second">57.14</td>
-                <td class="score-best">60.24</td>
-              </tr>
-
-              <tr class="experiment-row"><th colspan="9" scope="colgroup">Exp2: Reverse vs. forward enhancement</th></tr>
-              <tr class="generator-row"><td colspan="9">downstream generator: Wan3.0's video generator</td></tr>
-              <tr>
-                <th scope="row">Original Request</th>
-                <td>23.97</td><td>21.01</td><td>29.85</td><td>19.32</td>
-                <td>35.00</td><td>22.60</td><td>6.38</td><td>23.05</td>
-              </tr>
-              <tr>
-                <th scope="row">Forward Rewriting</th>
-                <td class="score-second">39.57</td><td>38.43</td><td class="score-second">42.13</td><td class="score-second">43.57</td>
-                <td class="score-second">38.61</td><td class="score-second">34.62</td><td class="score-second">41.89</td><td class="score-second">39.49</td>
-              </tr>
-              <tr>
-                <th scope="row">Forward-target SFT</th>
-                <td>30.36</td><td class="score-second">44.23</td><td>32.28</td><td>37.00</td>
-                <td>35.34</td><td>33.72</td><td>34.26</td><td>35.17</td>
-              </tr>
-              <tr>
-                <th scope="row">WanPE-397B-SFT</th>
-                <td class="score-best">46.48</td><td class="score-best">55.98</td><td class="score-best">48.31</td><td class="score-best">49.32</td>
-                <td class="score-best">45.51</td><td class="score-best">51.54</td><td class="score-best">51.23</td><td class="score-best">49.86</td>
-              </tr>
-
-              <tr class="experiment-row"><th colspan="9" scope="colgroup">Exp3: Cross-generator transfer (5–15s)</th></tr>
-              <tr class="generator-row"><td colspan="9">downstream generator: LTX-2.5-Base</td></tr>
-              <tr>
-                <th scope="row">LTX-2.5-PE</th>
-                <td>8.33</td><td>18.33</td><td>30.00</td><td class="score-best">32.50</td>
-                <td>7.50</td><td>26.67</td><td>25.00</td><td>21.11</td>
-              </tr>
-              <tr>
-                <th scope="row">WanPE-397B</th>
-                <td class="score-best">25.00</td><td class="score-best">38.33</td><td class="score-best">53.33</td><td>27.50</td>
-                <td class="score-best">27.50</td><td class="score-best">36.67</td><td class="score-best">35.00</td><td class="score-best">35.56</td>
-              </tr>
-              <tr class="generator-row"><td colspan="9">downstream generator: MiniMax-H3-Base</td></tr>
-              <tr>
-                <th scope="row">H3-Context-IR</th>
-                <td class="score-best">44.44</td><td>31.03</td><td>33.33</td><td>39.47</td>
-                <td>37.50</td><td>29.31</td><td class="score-best">40.00</td><td>35.92</td>
-              </tr>
-              <tr>
-                <th scope="row">WanPE-397B</th>
-                <td>29.63</td><td class="score-best">37.93</td><td class="score-best">40.00</td><td class="score-best">44.74</td>
-                <td class="score-best">47.50</td><td class="score-best">50.00</td><td class="score-best">40.00</td><td class="score-best">41.09</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <section id="demos" class="section-card">
-      <h2>Video Demos</h2>
       <div class="speed-controls" role="group" aria-label="Playback speed">
         <span class="speed-label">Play speed</span>
         <button class="speed-btn active" data-speed="1" type="button">x1</button>
@@ -187,7 +30,6 @@
       </div>
       <div id="demo-list"></div>
     </section>
-
   </main>
 
   <script src="./script.js"></script>
