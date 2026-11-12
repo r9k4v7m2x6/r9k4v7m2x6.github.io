@@ -1,0 +1,1 @@
+H3-Context-IR is unavailable for this case. The MiniMax-H3 PE API rejected the input prompt (content safety filter).

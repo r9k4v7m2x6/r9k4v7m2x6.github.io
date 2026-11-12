@@ -18,17 +18,31 @@
         <h1>WanPE Video Demos</h1>
       </header>
 
+      <aside class="change-note" aria-labelledby="change-note-title">
+        <div class="change-note-title" id="change-note-title"><strong>Changes from the initial version</strong></div>
+        <ul>
+          <li>For the Wan3.0 generator demos (<a href="#demo-section-1">Demo Section 1</a>), <strong>the original user prompts remain unchanged</strong>. We only add the enhanced prompts produced by other PE methods and their corresponding generated videos.</li>
+          <li>We add demos using the H3-Base generator (<a href="#demo-section-2">Demo Section 2</a>), <strong>with the same user prompts</strong> used in the Wan3.0 demos.</li>
+          <li>We add additional WanPE examples under Wan3.0 (<a href="#demo-section-3">Demo Section 3</a>), covering stop-motion animation, romance dialogue, one-take action, product MG, and anime magic-battle cases.</li>
+          <li>To improve browser loading speed, we lightly compress the demo videos (resolution and bitrate) while keeping the visual content unchanged.</li>
+        </ul>
+      </aside>
+
       <div class="sound-tip" role="note">
         <span class="sound-tip-icon" aria-hidden="true">🔊</span>
         <span><strong>For the best experience, turn on sound</strong> using the player controls.</span>
       </div>
 
-      <div class="speed-controls" role="group" aria-label="Playback speed">
-        <span class="speed-label">Play speed</span>
-        <button class="speed-btn active" data-speed="1" type="button">x1</button>
-        <button class="speed-btn" data-speed="2" type="button">x2</button>
-      </div>
+      <h2 class="demo-section-title" id="demo-section-1">Demo section 1: generation under Wan3.0 with multiple PE methods</h2>
       <div id="demo-list"></div>
+
+      <h2 class="demo-section-title" id="demo-section-2">Demo section 2: generation under H3-Base with multiple PE methods</h2>
+      <p class="demo-section-note">Same prompts and PE outputs as Section 1. In Demo 1, H3-Context-IR is unavailable due to content-safety rejection. Demo 4 remains in its original position, with a single unavailable notice because H3-Base supports at most 15s while that case is 30s.</p>
+      <div id="demo-list-h3"></div>
+
+      <h2 class="demo-section-title" id="demo-section-3">Demo section 3: additional WanPE examples under Wan3.0</h2>
+      <p class="demo-section-note">Prompt input and WanPE-enhanced generation for stop-motion animation, romance dialogue, one-take action, product MG, and anime magic-battle cases.</p>
+      <div id="demo-list-s3"></div>
     </section>
   </main>
 

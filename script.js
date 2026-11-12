@@ -1,9 +1,82 @@
-const DEMOS = ["demo1", "demo2", "demo3", "demo4", "demo5"].map((id) => ({
+const BASELINE_GROUPS = [
+  {
+    id: "prior",
+    title: "Prior PE methods",
+    note: "",
+    items: [
+      { key: "RAPO", label: "RAPO" },
+      { key: "VPO", label: "VPO" },
+      { key: "Prompt-A-Video", label: "Prompt-A-Video" },
+      { key: "SCMAPR", label: "SCMAPR" },
+    ],
+  },
+  {
+    id: "native",
+    title: "Native PEs of modern commercial systems",
+    note: "Both LTX-2.5-PE and H3-Context-IR's training methods and details are not disclosed.",
+    items: [
+      { key: "ltx", label: "LTX-2.5-PE" },
+      { key: "h3", label: "H3-Context-IR" },
+    ],
+  },
+  {
+    id: "forward",
+    title: "Forward rewriting baselines",
+    note: "",
+    items: [
+      { key: "gemini", label: "Gemini-3.1-Pro" },
+      { key: "qwen", label: "Qwen3.7-Max" },
+      { key: "gpt", label: "GPT-5.4" },
+    ],
+  },
+];
+
+function makeDemo(id, videoPrefix, displayIndex, groups = BASELINE_GROUPS) {
+  const flat = groups.flatMap((g) => g.items);
+  return {
+    id,
+    displayIndex,
+    groups,
+    promptPath: `./assets/demo/${id}/prompt_en.txt`,
+    pePath: `./assets/demo/${id}/pe_output.txt`,
+    wo: `./assets/demo/${id}/${videoPrefix}_prompt.mp4`,
+    pe: `./assets/demo/${id}/${videoPrefix}_WanPE.mp4`,
+    baselines: flat.map((b) => ({
+      ...b,
+      video: `./assets/demo/${id}/${videoPrefix}_${b.key}.mp4`,
+      textPath: `./assets/demo/${id}/pe_${b.key}.txt`,
+      unavailablePath: `./assets/demo/${id}/pe_${b.key}_unavailable.txt`,
+    })),
+  };
+}
+
+const H3_BASELINE_GROUPS = BASELINE_GROUPS.filter((g) => g.id !== "forward");
+
+// Section 1: Wan3.0
+const DEMOS_WAN30 = ["demo1", "demo2", "demo3", "demo4", "demo5"].map((id, i) => {
+  const d = makeDemo(id, "wan30", i + 1);
+  d.wo = `./assets/demo/${id}/wan30_wo_pe.mp4`;
+  d.pe = `./assets/demo/${id}/wan30_wanpe.mp4`;
+  return d;
+});
+
+// Section 2: H3-Base — no forward rewriting APIs (assets and config both omit them).
+const DEMOS_H3 = ["demo1", "demo2", "demo3", "demo4", "demo5"].map((id) => {
+  const demo = makeDemo(id, "h3base", Number(id.replace("demo", "")), H3_BASELINE_GROUPS);
+  if (id === "demo4") {
+    demo.unavailableReason =
+      "H3-Base supports videos of at most 15 seconds, while this case requires 30 seconds.";
+  }
+  return demo;
+});
+
+// Section 3: WanPE-only examples (prompt + enhanced prompt + video).
+const DEMOS_S3 = ["s3demo1", "s3demo2", "s3demo3", "s3demo4", "s3demo5"].map((id, i) => ({
   id,
+  displayIndex: i + 1,
   promptPath: `./assets/demo/${id}/prompt_en.txt`,
   pePath: `./assets/demo/${id}/pe_output.txt`,
-  wo: `./assets/demo/${id}/wan30_wo_pe.mp4`,
-  pe: `./assets/demo/${id}/wan30_wanpe_397B.mp4`,
+  pe: `./assets/demo/${id}/wan30_wanpe.mp4`,
 }));
 
 function dismissWarning() {
@@ -13,7 +86,7 @@ function dismissWarning() {
 
 async function loadText(path) {
   try {
-    const res = await fetch(path);
+    const res = await fetch(path, { cache: "no-store" });
     if (!res.ok) throw new Error(String(res.status));
     return (await res.text()).trim();
   } catch (err) {
@@ -29,30 +102,172 @@ function escapeHtml(s) {
     .replace(/"/g, "&quot;");
 }
 
-function buildDemoCard(demo, index, promptText, peText) {
+function videoPlayerHtml(src) {
+  return `
+    <video class="gallery-video" muted playsinline controls preload="metadata" data-src="${src}"></video>
+    <button type="button" class="fs-btn" aria-label="Fullscreen" title="Fullscreen">
+      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+        <path fill="currentColor" d="M7 14H5v5h5v-2H7v-3zm0-4h2V7h3V5H5v5h2zm10 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+      </svg>
+    </button>`;
+}
+
+function unavailableVideoHtml(reason) {
+  return `<div class="video-unavailable" role="status">
+    <div class="video-unavailable-title">Video unavailable</div>
+    <div class="video-unavailable-body">${escapeHtml(reason)}</div>
+  </div>`;
+}
+
+function rowPlayButtonHtml() {
+  return `<button type="button" class="row-play-btn" data-state="paused" aria-pressed="false">
+    <span class="play-icon" aria-hidden="true"></span>
+    <span class="row-play-text">Play this row</span>
+  </button>`;
+}
+
+function buildBaselineCard(b, text, unavailableReason) {
+  const media = unavailableReason
+    ? unavailableVideoHtml(unavailableReason)
+    : videoPlayerHtml(b.video);
+
+  const details = unavailableReason
+    ? ""
+    : `<details class="pe-details bl-details">
+        <summary>
+          <span class="pe-summary-copy">
+            <span class="pe-summary-title">${escapeHtml(b.label)} enhanced prompt</span>
+            <span class="pe-summary-hint">Click to view</span>
+          </span>
+          <span class="pe-summary-chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="pe-body">${escapeHtml(text)}</div>
+      </details>`;
+
+  return `
+    <div class="video-col baseline-col">
+      <div class="video-card">
+        <div class="video-label bl">${escapeHtml(b.label)}</div>
+        ${media}
+      </div>
+      ${details}
+    </div>
+  `;
+}
+
+function buildGroupHtml(group, demo, payloadByKey) {
+  const cards = group.items
+    .map((item) => {
+      const b = demo.baselines.find((x) => x.key === item.key);
+      const payload = payloadByKey[item.key] || { text: "", unavailable: "" };
+      return buildBaselineCard(b, payload.text, payload.unavailable);
+    })
+    .join("");
+  const note = group.note
+    ? `<p class="baseline-note">${escapeHtml(group.note)}</p>`
+    : "";
+  return `
+    <div class="baseline-group video-row" data-group="${escapeHtml(group.id)}">
+      <div class="video-row-head">
+        <div class="baseline-head">${escapeHtml(group.title)}</div>
+        ${rowPlayButtonHtml()}
+      </div>
+      ${note}
+      <div class="baseline-grid cols-${group.items.length}">${cards}</div>
+    </div>
+  `;
+}
+
+function buildPeOnlyDemoCard(demo, promptText, peText) {
   const block = document.createElement("article");
   block.className = "demo-block";
-  block.id = demo.id;
-
+  block.id = `s3-${demo.id}`;
   block.innerHTML = `
-    <div class="demo-index">Demo ${index + 1}</div>
+    <div class="demo-topbar">
+      <div class="demo-index">Demo ${demo.displayIndex}</div>
+      <div class="demo-controls">
+        <div class="demo-speed-controls" role="group" aria-label="Playback speed for Demo ${demo.displayIndex}">
+          <span class="speed-label">Speed</span>
+          <button class="demo-speed-btn active" data-speed="1" type="button">x1</button>
+          <button class="demo-speed-btn" data-speed="2" type="button">x2</button>
+        </div>
+      </div>
+    </div>
     <div class="prompt-box">
       <div class="prompt-head">Prompt input</div>
       <div class="prompt-body">${escapeHtml(promptText)}</div>
     </div>
-    <div class="compare-grid">
-      <div class="video-col">
-        <div class="video-card">
-          <div class="video-label wo">w/o PE</div>
-          <video class="gallery-video" loop muted playsinline controls preload="none" data-src="${demo.wo}"></video>
+    <div class="video-row main-video-row">
+      <div class="video-row-head">
+        <div class="video-row-label">WanPE result</div>
+      </div>
+      <div class="compare-grid pe-only-grid">
+        <div class="video-col">
+          <div class="video-card">
+            <div class="video-label pe">w/ WanPE</div>
+            ${videoPlayerHtml(demo.pe)}
+          </div>
+          <details class="pe-details">
+            <summary>
+              <span class="pe-summary-copy">
+                <span class="pe-summary-title">WanPE enhanced prompt</span>
+                <span class="pe-summary-hint">Click to view</span>
+              </span>
+              <span class="pe-summary-chevron" aria-hidden="true"></span>
+            </summary>
+            <div class="pe-body">${escapeHtml(peText)}</div>
+          </details>
         </div>
       </div>
-      <div class="video-col">
-        <div class="video-card">
-          <div class="video-label pe">w/ WanPE</div>
-          <video class="gallery-video" loop muted playsinline controls preload="none" data-src="${demo.pe}"></video>
+    </div>
+  `;
+  return block;
+}
+
+async function renderPeOnlyDemoList(hostId, demos) {
+  const host = document.getElementById(hostId);
+  if (!host) return;
+  for (const demo of demos) {
+    const [prompt, pe] = await Promise.all([
+      loadText(demo.promptPath),
+      loadText(demo.pePath),
+    ]);
+    host.appendChild(buildPeOnlyDemoCard(demo, prompt, pe));
+  }
+}
+
+function buildDemoCard(demo, promptText, peText, baselinePayloads, opts) {
+  const block = document.createElement("article");
+  block.className = "demo-block";
+  block.id = opts.blockId || demo.id;
+
+  const payloadByKey = {};
+  demo.baselines.forEach((b, i) => {
+    payloadByKey[b.key] = baselinePayloads[i];
+  });
+  const groups = opts.groups || demo.groups || BASELINE_GROUPS;
+  const groupsHtml = groups.map((g) => buildGroupHtml(g, demo, payloadByKey)).join("");
+  const primaryUnavailable = demo.unavailableReason || "";
+  const demoMedia = primaryUnavailable
+    ? `<div class="demo-unavailable-only">${unavailableVideoHtml(primaryUnavailable)}</div>`
+    : `<div class="video-row main-video-row">
+      <div class="video-row-head">
+        <div class="video-row-label">Main comparison</div>
+        ${rowPlayButtonHtml()}
+      </div>
+      <div class="compare-grid">
+        <div class="video-col">
+          <div class="video-card">
+            <div class="video-label wo">w/o PE</div>
+            ${videoPlayerHtml(demo.wo)}
+          </div>
         </div>
-        <details class="pe-details">
+        <div class="video-col">
+          <div class="video-card">
+            <div class="video-label pe">w/ WanPE</div>
+            ${videoPlayerHtml(demo.pe)}
+          </div>
+          <details class="pe-details">
           <summary>
             <span class="pe-summary-copy">
               <span class="pe-summary-title">WanPE enhanced prompt</span>
@@ -61,44 +276,326 @@ function buildDemoCard(demo, index, promptText, peText) {
             <span class="pe-summary-chevron" aria-hidden="true"></span>
           </summary>
           <div class="pe-body">${escapeHtml(peText)}</div>
-        </details>
+          </details>
+        </div>
       </div>
     </div>
+    <div class="baseline-section-title">${escapeHtml(opts.baselineTitle)}</div>
+    ${groupsHtml}`;
+  const demoControls = primaryUnavailable
+    ? ""
+    : `<div class="demo-controls">
+        <div class="demo-speed-controls" role="group" aria-label="Playback speed for Demo ${demo.displayIndex}">
+          <span class="speed-label">Speed</span>
+          <button class="demo-speed-btn active" data-speed="1" type="button">x1</button>
+          <button class="demo-speed-btn" data-speed="2" type="button">x2</button>
+        </div>
+        <button type="button" class="demo-play-btn" data-state="paused" aria-pressed="false">
+          <span class="play-icon" aria-hidden="true"></span>
+          <span class="demo-play-text">Play all videos in this demo</span>
+        </button>
+      </div>`;
+
+  block.innerHTML = `
+    <div class="demo-topbar">
+      <div class="demo-index">Demo ${demo.displayIndex}</div>
+      ${demoControls}
+    </div>
+    <div class="prompt-box">
+      <div class="prompt-head">Prompt input</div>
+      <div class="prompt-body">${escapeHtml(promptText)}</div>
+    </div>
+    ${demoMedia}
   `;
   return block;
 }
 
-async function renderDemos() {
-  const host = document.getElementById("demo-list");
+async function loadDemoPayload(demo) {
+  if (demo.unavailableReason) {
+    return {
+      prompt: await loadText(demo.promptPath),
+      pe: "",
+      baselinePayloads: [],
+    };
+  }
+  const [prompt, pe, ...baselinePayloads] = await Promise.all([
+    loadText(demo.promptPath),
+    loadText(demo.pePath),
+    ...demo.baselines.map(async (b) => {
+      const [text, unavailable] = await Promise.all([
+        loadText(b.textPath),
+        loadText(b.unavailablePath),
+      ]);
+        return { text, unavailable: demo.unavailableReason || unavailable };
+    }),
+  ]);
+  return { prompt, pe, baselinePayloads };
+}
+
+async function renderDemoList(hostId, demos, opts) {
+  const host = document.getElementById(hostId);
   if (!host) return;
 
-  for (let i = 0; i < DEMOS.length; i++) {
-    const demo = DEMOS[i];
-    const [prompt, pe] = await Promise.all([loadText(demo.promptPath), loadText(demo.pePath)]);
-    host.appendChild(buildDemoCard(demo, i, prompt, pe));
+  for (const demo of demos) {
+    const { prompt, pe, baselinePayloads } = await loadDemoPayload(demo);
+    host.appendChild(
+      buildDemoCard(demo, prompt, pe, baselinePayloads, {
+        baselineTitle: opts.baselineTitle,
+        blockId: opts.idPrefix ? `${opts.idPrefix}-${demo.id}` : demo.id,
+        groups: opts.groups,
+      })
+    );
   }
+}
 
-  syncPlaybackSpeed(currentSpeed());
+async function renderDemos() {
+  await renderDemoList("demo-list", DEMOS_WAN30, {
+    baselineTitle: "Other PE baselines on the same Wan3.0 generator",
+  });
+  await renderDemoList("demo-list-h3", DEMOS_H3, {
+    baselineTitle: "Other PE baselines on the same H3-Base generator",
+    idPrefix: "h3",
+  });
+  await renderPeOnlyDemoList("demo-list-s3", DEMOS_S3);
+  setupFullscreenControls();
+  setupPlayControls();
+  setupSpeedControls();
   observeVideos();
 }
 
-function currentSpeed() {
-  const active = document.querySelector(".speed-btn.active");
+/* ---------- play / pause state ----------
+ * Nothing autoplays. A video only plays when:
+ *   - its demo block is toggled on, or
+ *   - the user hits play in the native controls.
+ * Scrolling a video into view only lazy-loads its source (first frame).
+ */
+const demoPlaying = new Set(); // demo block ids toggled on
+const rowPlaying = new Set();
+const groupedVideos = new WeakSet();
+
+function ensureLoaded(v) {
+  if (!v.getAttribute("src") && v.dataset.src) {
+    v.src = v.dataset.src;
+    v.load();
+  }
+}
+
+function shouldAutoplay(v) {
+  const block = v.closest(".demo-block");
+  const row = v.closest(".video-row");
+  return !!(block && (demoPlaying.has(block.id) || rowPlaying.has(row)));
+}
+
+function rowIsPlaying(row) {
+  if (rowPlaying.has(row)) return true;
+  const block = row.closest(".demo-block");
+  if (!block || !demoPlaying.has(block.id)) return false;
+  const videos = [...row.querySelectorAll("video.gallery-video")];
+  return videos.some((v) => !v.ended);
+}
+
+function playVideo(v, grouped = false) {
+  ensureLoaded(v);
+  v.playbackRate = demoSpeed(v.closest(".demo-block"));
+  if (grouped) {
+    groupedVideos.add(v);
+    v.muted = true;
+  }
+  v.play().catch(() => {});
+}
+
+function setBtnState(btn, playing, textPlay, textPause) {
+  if (!btn) return;
+  btn.dataset.state = playing ? "playing" : "paused";
+  btn.setAttribute("aria-pressed", String(playing));
+  const t = btn.querySelector(".demo-play-text, .row-play-text");
+  if (t) t.textContent = playing ? textPause : textPlay;
+}
+
+function syncDemoButtons() {
+  document.querySelectorAll(".demo-block").forEach((block) => {
+    const demoOn = demoPlaying.has(block.id);
+    setBtnState(block.querySelector(".demo-play-btn"), demoOn, "Play all videos in this demo", "Pause all videos in this demo");
+    block.querySelectorAll(".video-row").forEach((row) => {
+      setBtnState(
+        row.querySelector(".row-play-btn"),
+        rowIsPlaying(row),
+        "Play this row",
+        "Pause this row"
+      );
+    });
+  });
+}
+
+function setDemoPlaying(block, on) {
+  if (on) demoPlaying.add(block.id);
+  else demoPlaying.delete(block.id);
+  block.querySelectorAll(".video-row").forEach((row) => rowPlaying.delete(row));
+  syncDemoButtons();
+  block.querySelectorAll("video.gallery-video").forEach((v) => {
+    if (on) {
+      playVideo(v, true);
+    } else if (activeFullscreenElement() !== v) {
+      groupedVideos.delete(v);
+      v.pause();
+    }
+  });
+}
+
+function setRowPlaying(row, on) {
+  const block = row.closest(".demo-block");
+  if (!block) return;
+  if (!on && demoPlaying.has(block.id)) {
+    demoPlaying.delete(block.id);
+    block.querySelectorAll(".video-row").forEach((otherRow) => {
+      if (otherRow !== row) rowPlaying.add(otherRow);
+    });
+  }
+  if (on) rowPlaying.add(row);
+  else rowPlaying.delete(row);
+  syncDemoButtons();
+  row.querySelectorAll("video.gallery-video").forEach((v) => {
+    if (on) {
+      playVideo(v, true);
+    } else if (activeFullscreenElement() !== v) {
+      groupedVideos.delete(v);
+      v.pause();
+    }
+  });
+}
+
+function finishRowIfEnded(row) {
+  const videos = [...row.querySelectorAll("video.gallery-video")];
+  if (!videos.length || !videos.every((v) => v.ended)) return;
+  rowPlaying.delete(row);
+  syncDemoButtons();
+}
+
+function finishDemoIfEnded(block) {
+  const videos = [...block.querySelectorAll("video.gallery-video")];
+  if (!videos.length || !videos.every((v) => v.ended)) return;
+  demoPlaying.delete(block.id);
+  block.querySelectorAll(".video-row").forEach((row) => rowPlaying.delete(row));
+  syncDemoButtons();
+}
+
+function setupPlayControls() {
+  document.querySelectorAll(".demo-block").forEach((block) => {
+    const btn = block.querySelector(".demo-play-btn");
+    if (btn && btn.dataset.bound !== "1") {
+      btn.dataset.bound = "1";
+      btn.addEventListener("click", () => {
+        const on = demoPlaying.has(block.id);
+        setDemoPlaying(block, !on);
+      });
+    }
+    block.querySelectorAll(".video-row").forEach((row) => {
+      const rowBtn = row.querySelector(".row-play-btn");
+      if (!rowBtn || rowBtn.dataset.bound === "1") return;
+      rowBtn.dataset.bound = "1";
+      rowBtn.addEventListener("click", () => {
+        const on = rowIsPlaying(row);
+        setRowPlaying(row, !on);
+      });
+    });
+    block.querySelectorAll("video.gallery-video").forEach((v) => {
+      // Native video interaction is an individual play: sound defaults to on.
+      v.addEventListener("pointerdown", () => {
+        groupedVideos.delete(v);
+        v.muted = false;
+      });
+      v.addEventListener("keydown", () => {
+        groupedVideos.delete(v);
+        v.muted = false;
+      });
+      v.addEventListener("play", () => {
+        if (!groupedVideos.has(v) && !shouldAutoplay(v)) v.muted = false;
+      });
+      v.addEventListener("ended", () => {
+        groupedVideos.delete(v);
+        const row = v.closest(".video-row");
+        if (row) finishRowIfEnded(row);
+        finishDemoIfEnded(block);
+      });
+    });
+  });
+}
+
+function demoSpeed(block) {
+  const active = block?.querySelector(".demo-speed-btn.active");
   return Number(active?.dataset.speed || 1);
 }
 
-function syncPlaybackSpeed(speed) {
-  document.querySelectorAll("video.gallery-video").forEach((v) => {
+function syncDemoPlaybackSpeed(block, speed) {
+  block.querySelectorAll("video.gallery-video").forEach((v) => {
     v.playbackRate = speed;
   });
 }
 
+function activeFullscreenElement() {
+  return (
+    document.fullscreenElement ||
+    document.webkitFullscreenElement ||
+    document.msFullscreenElement ||
+    null
+  );
+}
+
+async function enterFullscreen(video) {
+  if (!video) return;
+  ensureLoaded(video);
+  groupedVideos.delete(video);
+  video.muted = false;
+  video.playbackRate = demoSpeed(video.closest(".demo-block"));
+  video.play().catch(() => {});
+  try {
+    if (video.requestFullscreen) await video.requestFullscreen();
+    else if (video.webkitEnterFullscreen) video.webkitEnterFullscreen();
+    else if (video.webkitRequestFullscreen) video.webkitRequestFullscreen();
+    else if (video.msRequestFullscreen) video.msRequestFullscreen();
+  } catch (err) {
+    /* ignore user-gesture / policy failures */
+  }
+}
+
+async function exitFullscreen() {
+  try {
+    if (document.exitFullscreen) await document.exitFullscreen();
+    else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+    else if (document.msExitFullscreen) document.msExitFullscreen();
+  } catch (err) {
+    /* ignore */
+  }
+}
+
+function setupFullscreenControls() {
+  document.querySelectorAll(".video-card").forEach((card) => {
+    const video = card.querySelector("video.gallery-video");
+    const btn = card.querySelector(".fs-btn");
+    if (!video || !btn || btn.dataset.bound === "1") return;
+    btn.dataset.bound = "1";
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (activeFullscreenElement() === video) exitFullscreen();
+      else enterFullscreen(video);
+    });
+    video.addEventListener("dblclick", (e) => {
+      e.preventDefault();
+      if (activeFullscreenElement() === video) exitFullscreen();
+      else enterFullscreen(video);
+    });
+  });
+}
+
 function setupSpeedControls() {
-  document.querySelectorAll(".speed-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      document.querySelectorAll(".speed-btn").forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-      syncPlaybackSpeed(Number(btn.dataset.speed || 1));
+  document.querySelectorAll(".demo-block").forEach((block) => {
+    block.querySelectorAll(".demo-speed-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        block.querySelectorAll(".demo-speed-btn").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        syncDemoPlaybackSpeed(block, Number(btn.dataset.speed || 1));
+      });
     });
   });
 }
@@ -134,12 +631,11 @@ function observeVideos() {
       entries.forEach((entry) => {
         const v = entry.target;
         if (entry.isIntersecting) {
-          if (!v.getAttribute("src") && v.dataset.src) {
-            v.src = v.dataset.src;
-            v.load();
-          }
-          v.play().catch(() => {});
+          ensureLoaded(v);
+          if (shouldAutoplay(v) && v.paused && !v.ended) playVideo(v, true);
         } else {
+          if (activeFullscreenElement() === v) return;
+          if (shouldAutoplay(v)) return;
           v.pause();
           // Release decoders and network buffers for off-screen videos. Keeping
           // all ten players loaded can exhaust browser media resources.
@@ -158,7 +654,6 @@ function observeVideos() {
 
 document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("dismiss-warning")?.addEventListener("click", dismissWarning);
-  setupSpeedControls();
   setupNavHighlight();
   renderDemos();
 });

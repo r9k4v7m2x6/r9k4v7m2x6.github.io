@@ -1,0 +1,1 @@
+H3-Context-IR is unavailable for this case. The H3-Context-IR API supports generation of at most 15s.
