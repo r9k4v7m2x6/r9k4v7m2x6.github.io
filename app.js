@@ -375,7 +375,7 @@ const groupedVideos = new WeakSet();
 
 function videosIn(root, create = false) {
   return [...root.querySelectorAll(".video-shell")]
-    .map((shell) => (create ? createVideo(shell) : shell.querySelector("video.gallery-video")))
+    .map((shell) => (create ? createVideo(shell, true) : shell.querySelector("video.gallery-video")))
     .filter(Boolean);
 }
 
@@ -400,9 +400,36 @@ function bindVideoEvents(v) {
   });
 }
 
-function createVideo(shell) {
+function setVideoLoadState(shell, state) {
+  const btn = shell.querySelector(".video-load-btn");
+  const label = btn?.querySelector("span:last-child");
+  if (!btn) return;
+  btn.classList.toggle("is-loading", state === "loading");
+  btn.toggleAttribute("hidden", state === "ready");
+  btn.setAttribute("aria-busy", state === "loading" ? "true" : "false");
+  if (label) label.textContent = state === "loading" ? "Loading…" : "Load video";
+}
+
+function finishVideoLoading(shell, v) {
+  if (shell.querySelector("video.gallery-video") !== v || v.dataset.eager !== "1") return;
+  setVideoLoadState(shell, "ready");
+  shell.querySelector(".fs-btn")?.removeAttribute("hidden");
+}
+
+function startVideoLoading(shell, v) {
+  v.dataset.eager = "1";
+  v.preload = "auto";
+  setVideoLoadState(shell, "loading");
+  if (v.readyState >= 2) finishVideoLoading(shell, v);
+  else v.load();
+}
+
+function createVideo(shell, eager = false) {
   let v = shell.querySelector("video.gallery-video");
-  if (v) return v;
+  if (v) {
+    if (eager) startVideoLoading(shell, v);
+    return v;
+  }
   v = document.createElement("video");
   v.className = "gallery-video";
   v.muted = true;
@@ -413,9 +440,18 @@ function createVideo(shell) {
   v.src = v.dataset.src;
   shell.prepend(v);
   shell.classList.add("is-loaded");
-  shell.querySelector(".video-load-btn")?.setAttribute("hidden", "");
-  shell.querySelector(".fs-btn")?.removeAttribute("hidden");
+  setVideoLoadState(shell, eager ? "loading" : "idle");
   bindVideoEvents(v);
+  v.addEventListener("loadeddata", () => finishVideoLoading(shell, v));
+  v.addEventListener("canplay", () => finishVideoLoading(shell, v));
+  v.addEventListener("error", () => {
+    if (shell.querySelector("video.gallery-video") !== v) return;
+    v.remove();
+    shell.classList.remove("is-loaded");
+    setVideoLoadState(shell, "idle");
+    shell.querySelector(".fs-btn")?.setAttribute("hidden", "");
+  });
+  if (eager) v.dataset.eager = "1";
   v.load();
   return v;
 }
@@ -429,7 +465,7 @@ function releaseVideo(shell) {
   v.load();
   v.remove();
   shell.classList.remove("is-loaded");
-  shell.querySelector(".video-load-btn")?.removeAttribute("hidden");
+  setVideoLoadState(shell, "idle");
   shell.querySelector(".fs-btn")?.setAttribute("hidden", "");
 }
 
@@ -573,14 +609,14 @@ function setupFullscreenControls() {
     btn.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      const video = createVideo(shell);
+      const video = createVideo(shell, true);
       if (activeFullscreenElement() === video) exitFullscreen();
       else enterFullscreen(video);
     });
-    loadBtn?.addEventListener("click", () => createVideo(shell));
+    loadBtn?.addEventListener("click", () => createVideo(shell, true));
     shell.addEventListener("dblclick", (e) => {
       e.preventDefault();
-      const video = createVideo(shell);
+      const video = createVideo(shell, true);
       if (activeFullscreenElement() === video) exitFullscreen();
       else enterFullscreen(video);
     });

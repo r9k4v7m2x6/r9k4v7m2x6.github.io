@@ -602,6 +602,7 @@ body {
   letter-spacing: 0.02em;
 }
 .video-load-btn:hover { color: #fff; }
+.video-load-btn.is-loading { cursor: wait; }
 .video-load-icon {
   width: 44px;
   height: 44px;
@@ -618,6 +619,22 @@ body {
   border-style: solid;
   border-width: 9px 0 9px 14px;
   border-color: transparent transparent transparent #fff;
+}
+.video-load-btn.is-loading .video-load-icon {
+  background: rgba(15, 15, 20, 0.72);
+}
+.video-load-btn.is-loading .video-load-icon::after {
+  left: 10px;
+  top: 10px;
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(255, 255, 255, 0.34);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: video-load-spin 0.8s linear infinite;
+}
+@keyframes video-load-spin {
+  to { transform: rotate(360deg); }
 }
 .video-load-btn[hidden],
 .fs-btn[hidden] { display: none; }
