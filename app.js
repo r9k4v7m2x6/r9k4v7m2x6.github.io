@@ -104,12 +104,17 @@ function escapeHtml(s) {
 
 function videoPlayerHtml(src) {
   return `
-    <video class="gallery-video" muted playsinline controls preload="metadata" data-src="${src}"></video>
-    <button type="button" class="fs-btn" aria-label="Fullscreen" title="Fullscreen">
-      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
-        <path fill="currentColor" d="M7 14H5v5h5v-2H7v-3zm0-4h2V7h3V5H5v5h2zm10 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
-      </svg>
-    </button>`;
+    <div class="video-shell" data-src="${src}">
+      <button type="button" class="video-load-btn" aria-label="Load video">
+        <span class="video-load-icon" aria-hidden="true"></span>
+        <span>Load video</span>
+      </button>
+      <button type="button" class="fs-btn" aria-label="Fullscreen" title="Fullscreen" hidden>
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+          <path fill="currentColor" d="M7 14H5v5h5v-2H7v-3zm0-4h2V7h3V5H5v5h2zm10 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+        </svg>
+      </button>
+    </div>`;
 }
 
 function unavailableVideoHtml(reason) {
@@ -290,10 +295,6 @@ function buildDemoCard(demo, promptText, peText, baselinePayloads, opts) {
           <button class="demo-speed-btn active" data-speed="1" type="button">x1</button>
           <button class="demo-speed-btn" data-speed="2" type="button">x2</button>
         </div>
-        <button type="button" class="demo-play-btn" data-state="paused" aria-pressed="false">
-          <span class="play-icon" aria-hidden="true"></span>
-          <span class="demo-play-text">Play all videos in this demo</span>
-        </button>
       </div>`;
 
   block.innerHTML = `
@@ -369,9 +370,68 @@ async function renderDemos() {
  *   - the user hits play in the native controls.
  * Scrolling a video into view only lazy-loads its source (first frame).
  */
-const demoPlaying = new Set(); // demo block ids toggled on
 const rowPlaying = new Set();
 const groupedVideos = new WeakSet();
+
+function videosIn(root, create = false) {
+  return [...root.querySelectorAll(".video-shell")]
+    .map((shell) => (create ? createVideo(shell) : shell.querySelector("video.gallery-video")))
+    .filter(Boolean);
+}
+
+function bindVideoEvents(v) {
+  if (v.dataset.bound === "1") return;
+  v.dataset.bound = "1";
+  v.addEventListener("pointerdown", () => {
+    groupedVideos.delete(v);
+    v.muted = false;
+  });
+  v.addEventListener("keydown", () => {
+    groupedVideos.delete(v);
+    v.muted = false;
+  });
+  v.addEventListener("play", () => {
+    if (!groupedVideos.has(v) && !shouldAutoplay(v)) v.muted = false;
+  });
+  v.addEventListener("ended", () => {
+    groupedVideos.delete(v);
+    const row = v.closest(".video-row");
+    if (row) finishRowIfEnded(row);
+  });
+}
+
+function createVideo(shell) {
+  let v = shell.querySelector("video.gallery-video");
+  if (v) return v;
+  v = document.createElement("video");
+  v.className = "gallery-video";
+  v.muted = true;
+  v.playsInline = true;
+  v.controls = true;
+  v.preload = "metadata";
+  v.dataset.src = shell.dataset.src || "";
+  v.src = v.dataset.src;
+  shell.prepend(v);
+  shell.classList.add("is-loaded");
+  shell.querySelector(".video-load-btn")?.setAttribute("hidden", "");
+  shell.querySelector(".fs-btn")?.removeAttribute("hidden");
+  bindVideoEvents(v);
+  v.load();
+  return v;
+}
+
+function releaseVideo(shell) {
+  const v = shell.querySelector("video.gallery-video");
+  if (!v || activeFullscreenElement() === v || shouldAutoplay(v)) return;
+  groupedVideos.delete(v);
+  v.pause();
+  v.removeAttribute("src");
+  v.load();
+  v.remove();
+  shell.classList.remove("is-loaded");
+  shell.querySelector(".video-load-btn")?.removeAttribute("hidden");
+  shell.querySelector(".fs-btn")?.setAttribute("hidden", "");
+}
 
 function ensureLoaded(v) {
   if (!v.getAttribute("src") && v.dataset.src) {
@@ -381,17 +441,12 @@ function ensureLoaded(v) {
 }
 
 function shouldAutoplay(v) {
-  const block = v.closest(".demo-block");
   const row = v.closest(".video-row");
-  return !!(block && (demoPlaying.has(block.id) || rowPlaying.has(row)));
+  return !!(row && rowPlaying.has(row));
 }
 
 function rowIsPlaying(row) {
-  if (rowPlaying.has(row)) return true;
-  const block = row.closest(".demo-block");
-  if (!block || !demoPlaying.has(block.id)) return false;
-  const videos = [...row.querySelectorAll("video.gallery-video")];
-  return videos.some((v) => !v.ended);
+  return rowPlaying.has(row);
 }
 
 function playVideo(v, grouped = false) {
@@ -414,8 +469,6 @@ function setBtnState(btn, playing, textPlay, textPause) {
 
 function syncDemoButtons() {
   document.querySelectorAll(".demo-block").forEach((block) => {
-    const demoOn = demoPlaying.has(block.id);
-    setBtnState(block.querySelector(".demo-play-btn"), demoOn, "Play all videos in this demo", "Pause all videos in this demo");
     block.querySelectorAll(".video-row").forEach((row) => {
       setBtnState(
         row.querySelector(".row-play-btn"),
@@ -427,34 +480,13 @@ function syncDemoButtons() {
   });
 }
 
-function setDemoPlaying(block, on) {
-  if (on) demoPlaying.add(block.id);
-  else demoPlaying.delete(block.id);
-  block.querySelectorAll(".video-row").forEach((row) => rowPlaying.delete(row));
-  syncDemoButtons();
-  block.querySelectorAll("video.gallery-video").forEach((v) => {
-    if (on) {
-      playVideo(v, true);
-    } else if (activeFullscreenElement() !== v) {
-      groupedVideos.delete(v);
-      v.pause();
-    }
-  });
-}
-
 function setRowPlaying(row, on) {
   const block = row.closest(".demo-block");
   if (!block) return;
-  if (!on && demoPlaying.has(block.id)) {
-    demoPlaying.delete(block.id);
-    block.querySelectorAll(".video-row").forEach((otherRow) => {
-      if (otherRow !== row) rowPlaying.add(otherRow);
-    });
-  }
   if (on) rowPlaying.add(row);
   else rowPlaying.delete(row);
   syncDemoButtons();
-  row.querySelectorAll("video.gallery-video").forEach((v) => {
+  videosIn(row, on).forEach((v) => {
     if (on) {
       playVideo(v, true);
     } else if (activeFullscreenElement() !== v) {
@@ -465,30 +497,14 @@ function setRowPlaying(row, on) {
 }
 
 function finishRowIfEnded(row) {
-  const videos = [...row.querySelectorAll("video.gallery-video")];
+  const videos = videosIn(row);
   if (!videos.length || !videos.every((v) => v.ended)) return;
   rowPlaying.delete(row);
   syncDemoButtons();
 }
 
-function finishDemoIfEnded(block) {
-  const videos = [...block.querySelectorAll("video.gallery-video")];
-  if (!videos.length || !videos.every((v) => v.ended)) return;
-  demoPlaying.delete(block.id);
-  block.querySelectorAll(".video-row").forEach((row) => rowPlaying.delete(row));
-  syncDemoButtons();
-}
-
 function setupPlayControls() {
   document.querySelectorAll(".demo-block").forEach((block) => {
-    const btn = block.querySelector(".demo-play-btn");
-    if (btn && btn.dataset.bound !== "1") {
-      btn.dataset.bound = "1";
-      btn.addEventListener("click", () => {
-        const on = demoPlaying.has(block.id);
-        setDemoPlaying(block, !on);
-      });
-    }
     block.querySelectorAll(".video-row").forEach((row) => {
       const rowBtn = row.querySelector(".row-play-btn");
       if (!rowBtn || rowBtn.dataset.bound === "1") return;
@@ -496,26 +512,6 @@ function setupPlayControls() {
       rowBtn.addEventListener("click", () => {
         const on = rowIsPlaying(row);
         setRowPlaying(row, !on);
-      });
-    });
-    block.querySelectorAll("video.gallery-video").forEach((v) => {
-      // Native video interaction is an individual play: sound defaults to on.
-      v.addEventListener("pointerdown", () => {
-        groupedVideos.delete(v);
-        v.muted = false;
-      });
-      v.addEventListener("keydown", () => {
-        groupedVideos.delete(v);
-        v.muted = false;
-      });
-      v.addEventListener("play", () => {
-        if (!groupedVideos.has(v) && !shouldAutoplay(v)) v.muted = false;
-      });
-      v.addEventListener("ended", () => {
-        groupedVideos.delete(v);
-        const row = v.closest(".video-row");
-        if (row) finishRowIfEnded(row);
-        finishDemoIfEnded(block);
       });
     });
   });
@@ -527,7 +523,7 @@ function demoSpeed(block) {
 }
 
 function syncDemoPlaybackSpeed(block, speed) {
-  block.querySelectorAll("video.gallery-video").forEach((v) => {
+  videosIn(block).forEach((v) => {
     v.playbackRate = speed;
   });
 }
@@ -569,19 +565,22 @@ async function exitFullscreen() {
 }
 
 function setupFullscreenControls() {
-  document.querySelectorAll(".video-card").forEach((card) => {
-    const video = card.querySelector("video.gallery-video");
-    const btn = card.querySelector(".fs-btn");
-    if (!video || !btn || btn.dataset.bound === "1") return;
+  document.querySelectorAll(".video-shell").forEach((shell) => {
+    const btn = shell.querySelector(".fs-btn");
+    const loadBtn = shell.querySelector(".video-load-btn");
+    if (!btn || btn.dataset.bound === "1") return;
     btn.dataset.bound = "1";
     btn.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
+      const video = createVideo(shell);
       if (activeFullscreenElement() === video) exitFullscreen();
       else enterFullscreen(video);
     });
-    video.addEventListener("dblclick", (e) => {
+    loadBtn?.addEventListener("click", () => createVideo(shell));
+    shell.addEventListener("dblclick", (e) => {
       e.preventDefault();
+      const video = createVideo(shell);
       if (activeFullscreenElement() === video) exitFullscreen();
       else enterFullscreen(video);
     });
@@ -623,33 +622,32 @@ function setupNavHighlight() {
 }
 
 function observeVideos() {
-  const videos = document.querySelectorAll("video.gallery-video");
+  const shells = document.querySelectorAll(".video-shell");
   if (!("IntersectionObserver" in window)) return;
 
   const io = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
-        const v = entry.target;
+        const shell = entry.target;
+        clearTimeout(shell.releaseTimer);
         if (entry.isIntersecting) {
+          const v = createVideo(shell);
           ensureLoaded(v);
           if (shouldAutoplay(v) && v.paused && !v.ended) playVideo(v, true);
         } else {
-          if (activeFullscreenElement() === v) return;
-          if (shouldAutoplay(v)) return;
+          const v = shell.querySelector("video.gallery-video");
+          if (!v || activeFullscreenElement() === v || shouldAutoplay(v)) return;
           v.pause();
-          // Release decoders and network buffers for off-screen videos. Keeping
-          // all ten players loaded can exhaust browser media resources.
-          if (v.getAttribute("src")) {
-            v.removeAttribute("src");
-            v.load();
-          }
+          // Keep a recently viewed player briefly so small scroll movements do
+          // not repeatedly recreate it, then remove the native media element.
+          shell.releaseTimer = setTimeout(() => releaseVideo(shell), 12000);
         }
       });
     },
     { rootMargin: "160px 0px", threshold: 0.01 }
   );
 
-  videos.forEach((v) => io.observe(v));
+  shells.forEach((shell) => io.observe(shell));
 }
 
 document.addEventListener("DOMContentLoaded", () => {
